@@ -16,65 +16,71 @@ import org.hibernate.annotations.UpdateTimestamp;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
-import lombok.Getter;
+import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 @Entity
-@Table(name = "interface_info")
-@Getter
-@Setter
+@Table(name = "interface_info", schema = "interface_manager")
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class InterfaceInfoEntity {
 
-	@Id
-	@Column(name = "interface_id", length = 30)
-	private String interfaceId; // VARCHAR(30) - PK
-	
-	@Column(name = "interface_name", length = 30)
-	private String interfaceName; // VARCHAR(30)
+    @Id
+    @Column(name = "interface_id", length = 30)
+    private String interfaceId; 
+    
+    @Column(name = "interface_name", length = 100)
+    private String interfaceName; 
 
-	@Column(name = "cron_expression", length = 30)
-	private String cronExpression; // VARCHAR(30)
+    @Column(name = "cron_expression", length = 30)
+    private String cronExpression; 
 
-	@ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "pattern_type", referencedColumnName = "pattern_code")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pattern_type", referencedColumnName = "pattern_code", nullable = false)
     private PatternInfoEntity pattern;
 
-	@Column(name = "send_system_code", length = 3, nullable = false)
-	private String sendSystemCode; // CHAR(3)
+    @Column(name = "send_system_code", length = 3, nullable = false)
+    private String sendSystemCode; 
 
-	@Column(name = "recv_system_code", length = 3, nullable = false)
-	private String recvSystemCode; // CHAR(3)
+    @Column(name = "recv_system_code", length = 3, nullable = false)
+    private String recvSystemCode; 
 
-	@Column(name = "use_yn", length = 1, nullable = false)
-	private String useYn = "N"; // CHAR(1) DEFAULT 'N'
+    @Column(name = "use_yn", length = 1, nullable = false)
+    private String useYn = "N"; 
 
-	// --- Audit 필드 (자동 생성/수정 시간) ---
+    // --- 🚀 배포(Deploy) 관련 추가 컬럼 ---
 
-	@CreationTimestamp
-	@Column(name = "created_at", updatable = false)
-	private LocalDateTime createdAt; // TIMESTAMP
+    @Column(name = "deploy_status", length = 1, nullable = false)
+    @Builder.Default
+    private String deployStatus = "N"; // 'Y': 배포완료, 'N': 미배포 또는 배포필요
 
-	@UpdateTimestamp
-	@Column(name = "updated_at")
-	private LocalDateTime updatedAt; // TIMESTAMP
+    @Column(name = "last_deploy_at")
+    private LocalDateTime lastDeployAt; // 최종 성공 배포 일시
 
-	@Column(name = "created_by", length = 20)
-	private String createdBy;
+    @Column(name = "last_deploy_by", length = 20)
+    private String lastDeployBy; // 최종 배포자 ID
 
-	@Column(name = "updated_by", length = 20)
-	private String updatedBy;
+    // --- Audit 필드 ---
 
-	/**
-	 * 비즈니스 로직: 등록 전 기본값 세팅 등
-	 */
-	@PrePersist
-	public void prePersist() {
-		if (this.useYn == null) {
-			this.useYn = "N";
-		}
-	}
+    @CreationTimestamp
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt; 
+
+    @UpdateTimestamp
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt; 
+
+    @Column(name = "created_by", length = 20)
+    private String createdBy;
+
+    @Column(name = "updated_by", length = 20)
+    private String updatedBy;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.useYn == null) this.useYn = "N";
+        if (this.deployStatus == null) this.deployStatus = "N";
+    }
 }

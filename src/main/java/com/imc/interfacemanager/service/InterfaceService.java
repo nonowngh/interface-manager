@@ -76,8 +76,11 @@ public class InterfaceService {
 				.interfaceTypeName(p != null ? p.getInterfaceType().getDescription() : "") // ex: "배치"
 				.cronExpression(entity.getCronExpression()).patternType(entity.getPattern().getPatternCode())
 				.patternName(entity.getPattern().getPatternName()).sendSystemCode(entity.getSendSystemCode())
-				.updatedAt(entity.getUpdatedAt() != null ? entity.getUpdatedAt().toString() : null).recvSystemCode(entity.getRecvSystemCode()).useYn(entity.getUseYn())
-				.createdBy(entity.getCreatedBy()).updatedBy(entity.getUpdatedBy()).build();
+				.updatedAt(entity.getUpdatedAt() != null ? entity.getUpdatedAt().toString() : null)
+				.recvSystemCode(entity.getRecvSystemCode()).useYn(entity.getUseYn()).createdBy(entity.getCreatedBy())
+				.updatedBy(entity.getUpdatedBy()).deployStatus(entity.getDeployStatus())
+				.lastDeployAt(entity.getLastDeployAt() != null ? entity.getLastDeployAt().toString() : null)
+				.lastDeployBy(entity.getLastDeployBy()).build();
 	}
 
 	@Transactional

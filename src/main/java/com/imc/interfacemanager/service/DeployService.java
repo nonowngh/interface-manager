@@ -1,5 +1,6 @@
 package com.imc.interfacemanager.service;
 
+import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -61,24 +62,34 @@ public class DeployService {
 	    
 	    log.info("인터페이스 [{}]에 어댑터 {}개 매핑 완료", interfaceId, adapterIds.size());
 
-	    // [Step 2] 배포 이력 생성
-	    try {
-	        DeployHistory history = new DeployHistory();
-	        history.setInterfaceId(interfaceId);
-	        history.setDeployVersion(1); 
-	        history.setTargetAdapters(objectMapper.writeValueAsString(adapterIds));
-	        history.setDeployData("{}"); 
-	        history.setResultCode("P"); // Processing
-	        history.setDeployedBy("admin");
-	        
-	        deployHistoryRepository.save(history);
-	    } catch (JsonProcessingException e) {
-	        log.error("JSON 변환 실패: {}", e.getMessage());
-	        throw new RuntimeException("배포 이력 생성 중 오류 발생", e);
-	    }
+	    createDeployHistory(interfaceId, adapterIds);
 
 	    // [Step 3] 비동기 JMS 메시지 발송 (@Async 로직 실행)
 	    jmsSender.sendDeployMessages(interfaceId, adapterIds);
+	}
+
+	private void createDeployHistory(String interfaceId, List<String> adapterIds) {
+		try {
+	        // 1. 현재 인터페이스의 최신 버전을 조회하여 +1 계산
+	        int nextVersion = deployHistoryRepository.findMaxVersionByInterfaceId(interfaceId) + 1;
+
+	        // 2. 이력 객체 생성
+	        DeployHistory history = new DeployHistory();
+	        history.setInterfaceId(interfaceId);
+	        history.setDeployVersion(nextVersion);
+	        history.setTargetAdapters(objectMapper.writeValueAsString(adapterIds));
+	        history.setDeployData("{}");
+	        history.setResultCode("P");
+	        history.setDeployedBy("admin");
+	        history.setDeployedAt(LocalDateTime.now());
+
+	        // 3. 저장 및 반환
+	        deployHistoryRepository.save(history);
+
+	    } catch (JsonProcessingException e) {
+	        log.error("배포 이력 생성 중 JSON 변환 실패: interfaceId={}, error={}", interfaceId, e.getMessage());
+	        throw new RuntimeException("배포 이력 생성 중 오류가 발생했습니다.", e);
+	    }
 	}
 
 	/**

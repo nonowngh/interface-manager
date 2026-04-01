@@ -38,6 +38,10 @@ public class InterfaceInfoDto {
     private String updatedAt;
     private String createdBy;
     private String updatedBy;
+    
+    private String lastDeployAt;
+    private String deployStatus;
+    private String lastDeployBy;
 
     /**
      * [Helper] Enum 변환 편의 메서드

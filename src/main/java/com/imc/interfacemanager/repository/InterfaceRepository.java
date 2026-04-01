@@ -1,5 +1,6 @@
 package com.imc.interfacemanager.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,4 +37,18 @@ public interface InterfaceRepository extends JpaRepository<InterfaceInfoEntity, 
 	
 	// 수정일(modifiedDate) 기준 내림차순(Desc) 정렬
 	List<InterfaceInfoEntity> findAllByOrderByUpdatedAtDesc();
+
+
+	@Modifying
+    @Query("UPDATE InterfaceInfoEntity i " +
+           "SET i.deployStatus = :status, " +
+           "    i.lastDeployAt = :deployAt, " +
+           "    i.lastDeployBy = :deployBy " +
+           "WHERE i.interfaceId = :interfaceId")
+    int updateDeployInfo(
+        @Param("interfaceId") String interfaceId, 
+        @Param("status") String status, 
+        @Param("deployAt") LocalDateTime deployAt, 
+        @Param("deployBy") String deployBy
+    );
 }
