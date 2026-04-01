@@ -1,0 +1,31 @@
+- 배포 방식은 ESB MQ 를 사용한 JMS 메시지에 인터페이스 최신 정보 담아서 전달
+  : 어댑터가 리슨하고 있다가 가져가서 메모리에 반영
+  (@Component
+public class InterfaceConfigManager {
+    // 실시간 조회 성능을 위해 메모리 캐시 사용
+    private final Map<String, InterfaceDetail> configMap = new ConcurrentHashMap<>();
+
+    // 배포 이벤트 수신 시 호출될 메서드
+    public void refreshConfig(List<InterfaceDetail> newConfigs) {
+        // 기존 맵을 비우고 새 데이터로 교체 (Atomic하게 교체하는 것이 안전)
+        configMap.clear();
+        newConfigs.forEach(config -> configMap.put(config.getInterfaceId(), config));
+        log.info("인터페이스 설정 메모리 갱신 완료: {} 건", newConfigs.size());
+    }
+
+    public InterfaceDetail getConfig(String interfaceId) {
+        return configMap.get(interfaceId);
+    }
+})
+
+- 메인화면에 배포 상태 표기
+- 상세 화면에 배포 관리 버튼을 만들어서 팝업? 으로 구현
+- 운영 가이드 (쿼리 활용 시나리오)
+사용자가 상세 화면에서 '저장' 클릭 시:
+interface_info를 업데이트하면서 **deploy_status = 'N'**으로 변경합니다.
+interface_adapter_map에서 해당 interface_id를 DELETE 후 다시 INSERT (선택된 어댑터들) 합니다.
+사용자가 '배포' 클릭 시:
+현재 시점의 모든 데이터를 JSON으로 말아서 interface_deploy_hist에 INSERT 합니다.
+JMS 메시지 발송이 성공하면 interface_info의 deploy_status = 'Y' 및 배포 정보를 업데이트합니다.
+메인 화면 리스트 조회 시:
+deploy_status 값을 보고 UI에서 [배포완료/재배포필요] 배지를 표시합니다.
