@@ -49,6 +49,45 @@
     <artifactId>hibernate-types-52</artifactId>
     <version>2.21.1</version>
 </dependency>
+<!--<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-activemq</artifactId>
+</dependency>-->
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-jms</artifactId>
+    </dependency>
+    <dependency>
+    <groupId>org.apache.geronimo.specs</groupId>
+    <artifactId>geronimo-jms_1.1_spec</artifactId>
+    <version>1.1.1</version>
+</dependency>
+<dependency>
+    <groupId>org.apache.geronimo.specs</groupId>
+    <artifactId>geronimo-j2ee-management_1.1_spec</artifactId>
+    <version>1.0.1</version>
+</dependency>
+    <dependency>
+    <groupId>com.indigo</groupId>
+    <artifactId>indigomq-core</artifactId>
+    <version>1.5.5_C</version>
+    <scope>system</scope>
+    <systemPath>C:\Users\nonow\Documents\sts4-workspace\인터페이스관리\interface-manager/product-libs/indigomq-core-1.5.5_C.jar</systemPath>
+</dependency>
+ <dependency>
+    <groupId>com.indigo</groupId>
+    <artifactId>indigomq-pool</artifactId>
+    <version>1.5.5_B</version>
+    <scope>system</scope>
+    <systemPath>C:\Users\nonow\Documents\sts4-workspace\인터페이스관리\interface-manager/product-libs/indigomq-pool-1.5.5_B.jar</systemPath>
+</dependency>
+ <dependency>
+    <groupId>com.indigo</groupId>
+    <artifactId>indigomq-ra</artifactId>
+    <version>1.5.5_B</version>
+    <scope>system</scope>
+    <systemPath>C:\Users\nonow\Documents\sts4-workspace\인터페이스관리\interface-manager/product-libs/indigomq-ra-1.5.5_B.jar</systemPath>
+</dependency>
     </dependencies>
 
     <build>
