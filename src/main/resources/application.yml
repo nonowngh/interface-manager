@@ -37,7 +37,9 @@ spring:
     serialization:
       fail-on-empty-beans: false
   activemq:
-    broker-url: failover:(tcp://localhost:28001?wireFormat.maxInactivityDuration=0&wireFormat.cacheEnabled=false)
+#    broker-url: failover:(tcp://localhost:28111)?initialReconnectDelay=100&maxReconnectDelay=30000
+    broker-url: tcp://localhost:28001
+
 
 jms:
   receiver:

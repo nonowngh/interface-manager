@@ -1,48 +1,73 @@
 package com.imc.interfacemanager.configuration;
 
-import javax.jms.ConnectionFactory;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.jms.annotation.EnableJms;
-import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
 import org.springframework.jms.core.JmsTemplate;
+import org.springframework.jms.listener.DefaultMessageListenerContainer;
 
-// IndigoMQ 전용 팩토리 임포트
+import com.imc.interfacemanager.messaging.JmsReceiver;
 import com.indigo.indigomq.IndigoMQConnectionFactory;
+import com.indigo.indigomq.pool.PooledConnectionFactory;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @Configuration
-@EnableJms
 public class JmsConfiguration {
 
     @Value("${spring.activemq.broker-url}")
     private String brokerUrl;
 
-    @Bean
-    ConnectionFactory connectionFactory() {
+    /**
+     * 1. PooledConnectionFactory 직접 빈 등록
+     * 외부 주입을 기다리지 않고 여기서 직접 초기화합니다.
+     */
+    @Bean(destroyMethod = "stop") // 종료 시 커넥션 풀을 안전하게 닫기 위함
+    PooledConnectionFactory jmsConnectionFactory() {
+        // 물리적 팩토리 설정
         IndigoMQConnectionFactory factory = new IndigoMQConnectionFactory();
         factory.setBrokerURL(brokerUrl);
-        return factory;
-    }
-
-    @Bean
-    DefaultJmsListenerContainerFactory jmsListenerContainerFactory(ConnectionFactory connectionFactory) {
-        DefaultJmsListenerContainerFactory factory = new DefaultJmsListenerContainerFactory();
-        factory.setConnectionFactory(connectionFactory);
-        
-        // 재연결 및 타임아웃 설정 (종료 시 반응성 향상)
-        factory.setRecoveryInterval(5000L); 
-        factory.setReceiveTimeout(1000L);
-        
-        return factory;
+        // 풀링 팩토리 설정
+        PooledConnectionFactory pooledFactory = new PooledConnectionFactory();
+        pooledFactory.setConnectionFactory(factory);
+        // 풀링 세부 설정 (필요시 추가)
+        pooledFactory.setMaxConnections(2); // 최대 물리 커넥션 수
+        pooledFactory.setIdleTimeout(30000); // 유휴 타임아웃
+        pooledFactory.setMaximumActive(500);
+        log.info("✅ IndigoMQ PooledConnectionFactory 초기화 완료: {}", brokerUrl);
+        return pooledFactory;
     }
     
+    /**
+     * 2. Message Listener Container 설정
+     * 위에서 정의한 jmsConnectionFactory() 빈을 주입받습니다.
+     */
     @Bean
-    JmsTemplate jmsTemplate(ConnectionFactory connectionFactory) {
-        JmsTemplate jmsTemplate = new JmsTemplate(connectionFactory);
-        // IndigoMQ와의 세션 처리 방식을 설정 (기본값 사용 가능)
-        jmsTemplate.setSessionAcknowledgeMode(javax.jms.Session.AUTO_ACKNOWLEDGE);
-        return jmsTemplate;
+    DefaultMessageListenerContainer customMessageListenerContainer(
+            PooledConnectionFactory jmsConnectionFactory, 
+            JmsReceiver jmsReceiver) {
+        DefaultMessageListenerContainer container = new DefaultMessageListenerContainer();
+        container.setConnectionFactory(jmsConnectionFactory);
+        container.setDestinationName("IF.AD2IMC.Q");
+        container.setMessageListener(jmsReceiver);
+        container.setRecoveryInterval(5000);
+        container.setConcurrency("3-10");
+        container.setAcceptMessagesWhileStopping(false);
+        container.setReceiveTimeout(500);
+        
+        container.setErrorHandler(t -> {
+            log.error("⚠️ [JMS 연결 대기 중] 브로커가 응답하지 않습니다. (5초 후 재시도): {}", t.getMessage());
+        });
+        return container;
+    }
+
+    /**
+     * 3. JmsTemplate 설정
+     */
+    @Bean(name = "interfaceJmsTemplate")
+    JmsTemplate jmsTemplate(PooledConnectionFactory jmsConnectionFactory) {
+        log.info("✅ interfaceJmsTemplate 빈 등록 완료");
+        return new JmsTemplate(jmsConnectionFactory);
     }
 }

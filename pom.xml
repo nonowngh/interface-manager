@@ -67,6 +67,10 @@
     <artifactId>geronimo-j2ee-management_1.1_spec</artifactId>
     <version>1.0.1</version>
 </dependency>
+<dependency>
+    <groupId>commons-pool</groupId>
+    <artifactId>commons-pool</artifactId>
+</dependency>
     <dependency>
     <groupId>com.indigo</groupId>
     <artifactId>indigomq-core</artifactId>
