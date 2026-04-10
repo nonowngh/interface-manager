@@ -41,6 +41,8 @@ public class InterfaceInfoDto {
     
     private String lastDeployAt;
     private String deployStatus;
+    private int deployTotalCount;
+    private int deploySuccessCount;
     private String lastDeployBy;
 
     /**

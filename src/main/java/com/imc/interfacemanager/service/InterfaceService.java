@@ -1,35 +1,54 @@
 package com.imc.interfacemanager.service;
 
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.imc.interfacemanager.dto.DeployStatusDto;
 import com.imc.interfacemanager.dto.InterfaceInfoDto;
 import com.imc.interfacemanager.dto.PatternInfoDto;
 import com.imc.interfacemanager.entity.InterfaceInfoEntity;
 import com.imc.interfacemanager.entity.PatternInfoEntity;
+import com.imc.interfacemanager.repository.DeployHistoryRepository;
 import com.imc.interfacemanager.repository.InterfaceRepository;
 import com.imc.interfacemanager.repository.PatternRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InterfaceService {
 
 	private final InterfaceRepository repository;
 	private final PatternRepository patternRepository;
+	private final DeployHistoryRepository deployHistoryRepository;
 
 	/**
 	 * 1. 전체 목록 조회 (Read Only) DB의 Entity 리스트를 리액트가 이해할 수 있는 DTO 리스트로 변환합니다.
 	 */
 	@Transactional(readOnly = true)
 	public List<InterfaceInfoDto> getAllInterfaces() {
-		return repository.findAllByOrderByUpdatedAtDesc().stream().map(this::convertToDto) // 별도 변환 메서드 활용
+		// 1. 모든 인터페이스 엔티티 조회
+		List<InterfaceInfoEntity> entities = repository.findAllByOrderByUpdatedAtDesc();
+
+		// 2. 모든 ID를 리스트로 추출
+		List<String> ids = entities.stream().map(InterfaceInfoEntity::getInterfaceId).collect(Collectors.toList());
+
+		// 3. 통계 정보를 한 번의 쿼리로 대량 조회 (N+1 방지)
+		Map<String, DeployStatusDto> statsMap = deployHistoryRepository.findDeployStatsByInterfaceIds(ids).stream()
+				.collect(Collectors.toMap(DeployStatusDto::getInterfaceId, s -> s));
+		// 4. 변환 메서드에 Map을 전달하여 조립
+		return entities.stream().map(entity -> convertToDto(entity, statsMap.get(entity.getInterfaceId())))
 				.collect(Collectors.toList());
 	}
+
+//		return repository.findAllByOrderByUpdatedAtDesc().stream().map(this::convertToDto) // 별도 변환 메서드 활용
+//				.collect(Collectors.toList());
 
 	/**
 	 * 2. 상세 조회 (단건) 리액트 그리드에서 특정 행을 클릭했을 때 상세 정보를 가져오는 용도입니다.
@@ -81,6 +100,34 @@ public class InterfaceService {
 				.updatedBy(entity.getUpdatedBy()).deployStatus(entity.getDeployStatus())
 				.lastDeployAt(entity.getLastDeployAt() != null ? entity.getLastDeployAt().toString() : null)
 				.lastDeployBy(entity.getLastDeployBy()).build();
+	}
+
+	private InterfaceInfoDto convertToDto(InterfaceInfoEntity entity, DeployStatusDto stat) {
+		PatternInfoEntity p = entity.getPattern();
+		String deployStatus = "N";
+		if (stat != null &&  stat.getLastUpdatedAt() != null) {
+			if (stat.getTotalCount() > 0) {
+				if(stat.getSuccessCount() == stat.getTotalCount())
+					deployStatus = "Y";
+				else 
+					deployStatus = "P";
+			}
+		}
+
+		return InterfaceInfoDto.builder().interfaceId(entity.getInterfaceId()).interfaceName(entity.getInterfaceName())
+				.patternType(p != null ? p.getPatternCode() : null).patternName(p != null ? p.getPatternName() : null)
+				.interfaceType(p != null ? p.getInterfaceType().name() : null)
+				.interfaceTypeName(p != null ? p.getInterfaceType().getDescription() : "") // ex: "배치"
+				.cronExpression(entity.getCronExpression()).patternType(entity.getPattern().getPatternCode())
+				.patternName(entity.getPattern().getPatternName()).sendSystemCode(entity.getSendSystemCode())
+				.updatedAt(entity.getUpdatedAt() != null ? entity.getUpdatedAt().toString() : null)
+				.recvSystemCode(entity.getRecvSystemCode()).useYn(entity.getUseYn()).createdBy(entity.getCreatedBy())
+				.updatedBy(entity.getUpdatedBy()).deployStatus(entity.getDeployStatus()).deployStatus(deployStatus)
+				.deployTotalCount(stat != null ? stat.getTotalCount() : 0)
+				.deploySuccessCount(stat != null ? stat.getSuccessCount() : 0)
+				.lastDeployAt(
+						stat != null && stat.getLastUpdatedAt() != null ? stat.getLastUpdatedAt().toString() : null)
+				.build();
 	}
 
 	@Transactional

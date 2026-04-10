@@ -36,7 +36,7 @@ public class deployController {
 
 	@PostMapping("/execute")
 	public ResponseEntity<?> executeDeploy(@RequestBody DeployRequest request) {
-	    deployService.processAsyncDeploy(request.getInterfaceId(), request.getAdapterIds());
+	    deployService.processAsyncDeploy(request.getInterfaceId(), request.getAdapterIds(), request.getDeployVersion());
 	    return ResponseEntity.ok().build();
 	}
 

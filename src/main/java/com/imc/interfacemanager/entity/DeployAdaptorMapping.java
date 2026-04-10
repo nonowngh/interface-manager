@@ -34,4 +34,7 @@ public class DeployAdaptorMapping {
 
     @Column(name = "created_by")
     private String createdBy;
+    
+    @Column(name = "last_deploy_version")
+    private String lastDeployVersion;
 }

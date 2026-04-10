@@ -10,5 +10,5 @@ public interface DeployHistoryDto {
     String getResult();
     
     // DB에 JSON 문자열로 저장되어 있다면 Service에서 List로 변환이 필요할 수 있습니다.
-    String getTargetAdaptersRaw(); 
+    String getTargetAdapter(); 
 }

@@ -37,16 +37,15 @@ public class DeployHistory {
     private String interfaceId;
 
     @Column(name = "deploy_version", nullable = false)
-    private Integer deployVersion;
+    private String deployVersion;
 
     /** [핵심 설정] 정의한 "jsonb" 타입을 이 필드에 적용합니다. **/
     @Type(type = "jsonb")
     @Column(name = "deploy_data", columnDefinition = "jsonb", nullable = false)
     private String deployData; 
 
-    @Type(type = "jsonb")
-    @Column(name = "target_adapters", columnDefinition = "jsonb", nullable = false)
-    private String targetAdapters;
+    @Column(name = "target_adapter", nullable = false)
+    private String targetAdapter;
 
     @Column(name = "result_code", length = 1)
     private String resultCode;

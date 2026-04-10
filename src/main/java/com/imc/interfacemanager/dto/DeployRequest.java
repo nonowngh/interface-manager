@@ -8,4 +8,5 @@ import lombok.Data;
 public class DeployRequest {
     private String interfaceId;
     private List<String> adapterIds;
+    private String deployVersion;
 }
