@@ -1,6 +1,6 @@
 package com.imc.interfacemanager.dto;
 
-import com.imc.interfacemanager.entity.PatternInfoEntity;
+import com.imc.interfacemanager.entity.PatternInfo;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -28,7 +28,7 @@ public class PatternInfoDto {
      * Entity를 DTO로 변환하는 편의 메서드입니다. 
      * 서비스 단에서 .map(PatternInfoDto::fromEntity) 형태로 깔끔하게 사용 가능합니다.
      */
-    public static PatternInfoDto fromEntity(PatternInfoEntity entity) {
+    public static PatternInfoDto fromEntity(PatternInfo entity) {
         if (entity == null) return null;
 
         return PatternInfoDto.builder()

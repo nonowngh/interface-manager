@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.imc.interfacemanager.dto.InterfaceInfoDto;
@@ -32,16 +33,15 @@ public class InterfaceController {
 	 */
 	@GetMapping
 	public ResponseEntity<List<InterfaceInfoDto>> getAllInterfaces() {
-		List<InterfaceInfoDto> list = interfaceService.getAllInterfaces();
-		return ResponseEntity.ok(list); // 200 OK
+		return ResponseEntity.ok(interfaceService.getAllInterfaces());
 	}
 
 	/**
 	 * 2. 상세 조회 (READ - Single) GET /api/v1/interfaces/{id}
 	 */
-	@GetMapping("/{id}")
-	public ResponseEntity<InterfaceInfoDto> getInterface(@PathVariable String id) {
-		return ResponseEntity.ok(interfaceService.getInterfaceById(id));
+	@GetMapping("/{interfaceId}")
+	public ResponseEntity<InterfaceInfoDto> getInterfaceById(@PathVariable String interfaceId) {
+		return ResponseEntity.ok(interfaceService.getInterfaceById(interfaceId));
 	}
 
 	/**
@@ -50,8 +50,8 @@ public class InterfaceController {
 	 */
 	@PostMapping
 	public ResponseEntity<String> saveInterface(@RequestBody InterfaceInfoDto dto) {
-		interfaceService.saveInterface(dto);
-		return ResponseEntity.status(HttpStatus.CREATED).body("저장 성공"); // 201 Created
+		interfaceService.saveInterfaceWithProps(dto);
+		return ResponseEntity.status(HttpStatus.CREATED).body("저장 성공");
 	}
 
 	/**
@@ -60,16 +60,33 @@ public class InterfaceController {
 	 */
 	@PatchMapping("/{id}")
 	public ResponseEntity<Void> toggleUseYn(@PathVariable String id, @RequestBody Map<String, String> body) {
-
 		String useYn = body.get("useYn");
 		interfaceService.updateUseYn(id, useYn);
-		return ResponseEntity.noContent().build(); // 204 No Content
+		return ResponseEntity.noContent().build();
 	}
 
 	@GetMapping("/patterns")
 	public ResponseEntity<List<PatternInfoDto>> getAllPatterns() {
-		List<PatternInfoDto> list = interfaceService.getAllPatterns();
-		return ResponseEntity.ok(list); // 200 OK
+		return ResponseEntity.ok(interfaceService.getAllPatterns());
 	}
-	
+
+	/**
+	 * 5. 패턴별 사용 중인 속성 키(Key) 목록 조회 (중복 제거) GET
+	 * /api/v1/interfaces/properties/keys/{patternCode}
+	 */
+	@GetMapping("/properties/keys/{patternCode}")
+	public ResponseEntity<List<String>> getExistingKeysByPattern(@PathVariable String patternCode) {
+		// Service를 통해 중복 없는 키 목록을 가져옵니다.
+		List<String> keys = interfaceService.getDistinctKeysByPattern(patternCode);
+		return ResponseEntity.ok(keys);
+	}
+
+	/**
+	 * 5. 키워드 검색
+	 */
+	@GetMapping("/search")
+	public ResponseEntity<List<InterfaceInfoDto>> searchInterfaces(@RequestParam String keyword) {
+		return ResponseEntity.ok(interfaceService.searchInterfaces(keyword));
+	}
+
 }

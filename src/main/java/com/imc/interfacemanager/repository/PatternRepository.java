@@ -4,9 +4,9 @@ import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 
-import com.imc.interfacemanager.entity.PatternInfoEntity;
+import com.imc.interfacemanager.entity.PatternInfo;
 
-public interface PatternRepository extends JpaRepository<PatternInfoEntity, String> {
+public interface PatternRepository extends JpaRepository<PatternInfo, String> {
     // 정렬 순서대로 가져오기 위해 추가
-    List<PatternInfoEntity> findAllByOrderBySortOrderAsc();
+    List<PatternInfo> findAllByOrderBySortOrderAsc();
 }

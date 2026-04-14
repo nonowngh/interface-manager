@@ -1,5 +1,7 @@
 package com.imc.interfacemanager.dto;
 
+import java.util.List;
+
 import com.imc.interfacemanager.constant.InterfaceType; // Enum 임포트
 
 import lombok.AllArgsConstructor;
@@ -44,6 +46,9 @@ public class InterfaceInfoDto {
     private int deployTotalCount;
     private int deploySuccessCount;
     private String lastDeployBy;
+    
+    List<InterfacePropDto> properties;
+    List<InterfaceSqlDto> sqls;
 
     /**
      * [Helper] Enum 변환 편의 메서드
