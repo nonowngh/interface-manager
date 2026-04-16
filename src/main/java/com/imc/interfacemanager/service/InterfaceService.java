@@ -2,8 +2,11 @@ package com.imc.interfacemanager.service;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -203,59 +206,192 @@ public class InterfaceService {
 				.collect(Collectors.toList());
 	}
 
+//	@Transactional
+//	public void saveInterfaceWithProps(InterfaceInfoDto dto) {
+//		// 1. 인터페이스 마스터 엔티티 조회 (수정 시간 갱신을 위해 영속성 컨텍스트에 올림)
+//	    InterfaceInfo master = repository.findById(dto.getInterfaceId())
+//	            .orElseThrow(() -> new RuntimeException("인터페이스를 찾을 수 없습니다: " + dto.getInterfaceId()));
+//
+//	    // 2. 기본 정보 업데이트 로직 수행 (기존 saveInterface 로직 호출 혹은 직접 구현)
+//	    updateMasterInfo(master, dto);
+//	    
+//	    // 2. 상세 설정(Properties) 처리: 삭제 후 저장
+//	    propRepository.deleteByInterfaceId(dto.getInterfaceId());
+//	    if (dto.getProperties() != null && !dto.getProperties().isEmpty()) {
+//	        List<InterfaceProp> props = dto.getProperties().stream().map(pDto -> {
+//	            InterfaceProp prop = new InterfaceProp();
+//	            prop.setInterfaceId(dto.getInterfaceId());
+//	            prop.setPatternCode(dto.getPatternType());
+//	            prop.setPropertyName(pDto.getPropertyName());
+//	            prop.setPropertyValue(pDto.getPropertyValue());
+//	            prop.setCreatedBy("SYSTEM_ADMIN");
+//	            prop.setUpdatedBy("SYSTEM_ADMIN");
+//	            return prop;
+//	        }).collect(Collectors.toList());
+//	        propRepository.saveAllAndFlush(props); 
+//	    }
+//	    // 3. SQL 정보 처리 (추가된 부분): 삭제 후 저장 -------------------------------
+//	    sqlRepository.deleteByInterfaceId(dto.getInterfaceId());
+//	    if (dto.getSqls() != null && !dto.getSqls().isEmpty()) {
+//	        List<InterfaceSql> sqlEntities = dto.getSqls().stream().map(sDto -> {
+//	            return InterfaceSql.builder()
+//	                    .interfaceId(dto.getInterfaceId())
+//	                    .sqlId(sDto.getSqlId())
+//	                    .sqlType(sDto.getSqlType())
+//	                    .sqlQuery(sDto.getSqlQuery())
+//	                    .build();
+//	        }).collect(Collectors.toList());
+//	        sqlRepository.saveAll(sqlEntities);
+//	    }
+//	    
+//	    master.setUpdatedAt(LocalDateTime.now());
+//	    master.setUpdatedBy("SYSTEM_ADMIN");
+//	    repository.saveAndFlush(master);
+//	}
+
 	@Transactional
 	public void saveInterfaceWithProps(InterfaceInfoDto dto) {
-		// 1. 인터페이스 마스터 엔티티 조회 (수정 시간 갱신을 위해 영속성 컨텍스트에 올림)
-	    InterfaceInfo master = repository.findById(dto.getInterfaceId())
-	            .orElseThrow(() -> new RuntimeException("인터페이스를 찾을 수 없습니다: " + dto.getInterfaceId()));
+		String modifier = (dto.getUpdatedBy() != null) ? dto.getUpdatedBy() : "SYSTEM_ADMIN";
+		boolean isChanged = false;
 
-	    // 2. 기본 정보 업데이트 로직 수행 (기존 saveInterface 로직 호출 혹은 직접 구현)
-	    updateMasterInfo(master, dto);
-	    
-	    // 2. 상세 설정(Properties) 처리: 삭제 후 저장
-	    propRepository.deleteByInterfaceId(dto.getInterfaceId());
-	    if (dto.getProperties() != null && !dto.getProperties().isEmpty()) {
-	        List<InterfaceProp> props = dto.getProperties().stream().map(pDto -> {
-	            InterfaceProp prop = new InterfaceProp();
-	            prop.setInterfaceId(dto.getInterfaceId());
-	            prop.setPatternCode(dto.getPatternType());
-	            prop.setPropertyName(pDto.getPropertyName());
-	            prop.setPropertyValue(pDto.getPropertyValue());
-	            prop.setCreatedBy("SYSTEM_ADMIN");
-	            prop.setUpdatedBy("SYSTEM_ADMIN");
-	            return prop;
-	        }).collect(Collectors.toList());
-	        propRepository.saveAllAndFlush(props); 
-	    }
-	    // 3. SQL 정보 처리 (추가된 부분): 삭제 후 저장 -------------------------------
-	    sqlRepository.deleteByInterfaceId(dto.getInterfaceId());
-	    if (dto.getSqls() != null && !dto.getSqls().isEmpty()) {
-	        List<InterfaceSql> sqlEntities = dto.getSqls().stream().map(sDto -> {
-	            return InterfaceSql.builder()
-	                    .interfaceId(dto.getInterfaceId())
-	                    .sqlId(sDto.getSqlId())
-	                    .sqlType(sDto.getSqlType())
-	                    .sqlQuery(sDto.getSqlQuery())
-	                    .build();
-	        }).collect(Collectors.toList());
-	        sqlRepository.saveAll(sqlEntities);
-	    }
-	    
-	    master.setUpdatedAt(LocalDateTime.now());
-	    master.setUpdatedBy("SYSTEM_ADMIN");
-	    repository.saveAndFlush(master);
+		// 1. 마스터 조회 또는 생성
+		Optional<InterfaceInfo> existingMaster = repository.findById(dto.getInterfaceId());
+		InterfaceInfo master;
+
+		if (!existingMaster.isPresent()) {
+			master = InterfaceInfo.builder().interfaceId(dto.getInterfaceId()).createdBy(modifier).build();
+			isChanged = true;
+		} else {
+			master = existingMaster.get();
+		}
+
+		// 2. 외래키(PatternInfo) 조회
+		PatternInfo pattern = patternRepository.findById(dto.getPatternType())
+				.orElseThrow(() -> new RuntimeException("패턴 정보를 찾을 수 없습니다: " + dto.getPatternType()));
+
+		// 3. 마스터 정보 변경 체크 및 데이터 세팅
+		if (!isChanged) {
+			isChanged = isMasterInfoChanged(master, dto, pattern);
+		}
+
+		master.setPattern(pattern);
+		updateMasterInfo(master, dto);
+
+		// [중요] 신규 생성인 경우, 자식 데이터를 넣기 전에 마스터를 먼저 DB에 반영(Flush)해야 합니다.
+		// 이렇게 해야 interface_sql이 생성될 때 FK 참조 오류가 나지 않습니다.
+		if (!existingMaster.isPresent()) {
+			repository.saveAndFlush(master);
+		}
+
+		// 4. 상세 설정(Properties) 처리
+		if (isPropertiesChanged(dto.getInterfaceId(), dto.getProperties())) {
+			propRepository.deleteByInterfaceId(dto.getInterfaceId());
+			if (dto.getProperties() != null && !dto.getProperties().isEmpty()) {
+				List<InterfaceProp> props = dto.getProperties().stream().map(pDto -> {
+					InterfaceProp prop = new InterfaceProp();
+					prop.setInterfaceId(dto.getInterfaceId());
+					prop.setPatternCode(dto.getPatternType());
+					prop.setPropertyName(pDto.getPropertyName());
+					prop.setPropertyValue(pDto.getPropertyValue());
+					prop.setCreatedBy(modifier);
+					prop.setUpdatedBy(modifier);
+					return prop;
+				}).collect(Collectors.toList());
+				propRepository.saveAll(props);
+			}
+			isChanged = true;
+		}
+
+		// 5. SQL 정보 처리
+		if (isSqlsChanged(dto.getInterfaceId(), dto.getSqls())) {
+			sqlRepository.deleteByInterfaceId(dto.getInterfaceId());
+			if (dto.getSqls() != null && !dto.getSqls().isEmpty()) {
+				List<InterfaceSql> sqlEntities = dto.getSqls().stream()
+						.map(sDto -> InterfaceSql.builder().interfaceId(dto.getInterfaceId()).sqlId(sDto.getSqlId())
+								.sqlType(sDto.getSqlType()).sqlQuery(sDto.getSqlQuery()).build())
+						.collect(Collectors.toList());
+				sqlRepository.saveAll(sqlEntities);
+			}
+			isChanged = true;
+		}
+
+		// 6. 변경 사항이 있다면 최종 마스터 상태 업데이트
+		if (isChanged) {
+			master.setUpdatedBy(modifier);
+			master.setUpdatedAt(LocalDateTime.now());
+			repository.save(master);
+		}
 	}
-	
+
 	private void updateMasterInfo(InterfaceInfo master, InterfaceInfoDto dto) {
-	    master.setInterfaceName(dto.getInterfaceName());
-	    master.setCronExpression(dto.getCronExpression());
-	    master.setSendSystemCode(dto.getSendSystemCode());
-	    master.setRecvSystemCode(dto.getRecvSystemCode());
-	    master.setUseYn(dto.getUseYn());
+		master.setInterfaceName(dto.getInterfaceName());
+		master.setCronExpression(dto.getCronExpression());
+		master.setSendSystemCode(dto.getSendSystemCode());
+		master.setRecvSystemCode(dto.getRecvSystemCode());
+		master.setUseYn(dto.getUseYn());
+		master.setUpdatedBy(dto.getUpdatedBy()); // 수정자 정보 갱신
+
+		// PatternInfo 연동이 필요한 경우 (ID로 조회해서 세팅)
+		// master.setPattern(patternRepository.getReferenceById(dto.getPatternCode()));
 	}
 
 	@Transactional(readOnly = true)
 	public List<String> getDistinctKeysByPattern(String patternCode) {
 		return propRepository.findDistinctPropertyNamesByPatternCode(patternCode);
+	}
+
+	private boolean isMasterInfoChanged(InterfaceInfo master, InterfaceInfoDto dto, PatternInfo newPattern) {
+		return !Objects.equals(master.getInterfaceName(), dto.getInterfaceName())
+				|| !Objects.equals(master.getCronExpression(), dto.getCronExpression())
+				|| !Objects.equals(master.getSendSystemCode(), dto.getSendSystemCode())
+				|| !Objects.equals(master.getRecvSystemCode(), dto.getRecvSystemCode())
+				|| !Objects.equals(master.getUseYn(), dto.getUseYn())
+				|| !Objects.equals(master.getPattern().getPatternCode(), newPattern.getPatternCode());
+	}
+
+	private boolean isPropertiesChanged(String id, List<InterfacePropDto> dtoList) {
+		List<InterfaceProp> existing = propRepository.findByInterfaceId(id);
+
+		if (dtoList == null)
+			dtoList = Collections.emptyList();
+		if (existing.size() != dtoList.size())
+			return true;
+
+		// 모든 항목이 순서와 상관없이 동일한지 확인 (간단하게 필드 조합 비교)
+		for (InterfacePropDto d : dtoList) {
+			boolean match = existing.stream().anyMatch(e -> Objects.equals(e.getPropertyName(), d.getPropertyName())
+					&& Objects.equals(e.getPropertyValue(), d.getPropertyValue()));
+			if (!match)
+				return true;
+		}
+		return false;
+	}
+
+	private boolean isSqlsChanged(String interfaceId, List<InterfaceSqlDto> dtoList) {
+		// 1. 기존 DB에 저장된 SQL 목록 조회
+		List<InterfaceSql> existing = sqlRepository.findByInterfaceId(interfaceId);
+
+		// 2. 입력 리스트 null 처리
+		if (dtoList == null)
+			dtoList = Collections.emptyList();
+
+		// 3. 개수가 다르면 무조건 변경된 것임
+		if (existing.size() != dtoList.size())
+			return true;
+
+		// 4. 내용 비교 (개수가 같을 때)
+		for (InterfaceSqlDto d : dtoList) {
+			// 동일한 sqlId를 가진 항목이 있는지 찾고, 있다면 내용까지 일치하는지 확인
+			boolean match = existing.stream()
+					.anyMatch(e -> Objects.equals(e.getSqlId(), d.getSqlId())
+							&& Objects.equals(e.getSqlType(), d.getSqlType())
+							&& Objects.equals(e.getSqlQuery(), d.getSqlQuery()));
+
+			// 하나라도 매칭되는 기존 데이터가 없다면 변경된 것
+			if (!match)
+				return true;
+		}
+
+		return false;
 	}
 }

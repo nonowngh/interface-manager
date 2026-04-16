@@ -25,9 +25,9 @@ public interface DeployAdaptorRepository extends JpaRepository<EsbProduct, Strin
 	        "     WHERE h.interface_id = :ifId " + 
 	        "       AND h.result_code = 'S' " + 
 	        "       AND h.target_adapter = prd.pd_name) AS lastDeployTime " + // 🚀 비교 연산자로 수정
-	        "FROM indigo.esb_product prd " + 
-	        "INNER JOIN indigo.esb_instance ins ON prd.pd_id = ins.in_id " + 
-	        "INNER JOIN indigo.esb_project prj ON ins.pj_id = prj.pj_id " + 
+	        "FROM esb_product prd " + 
+	        "INNER JOIN esb_instance ins ON prd.pd_id = ins.in_id " + 
+	        "INNER JOIN esb_project prj ON ins.pj_id = prj.pj_id " + 
 	        "LEFT JOIN interface_manager.interface_adapter_map m " + 
 	        "    ON prd.pd_name = m.adapter_id AND m.interface_id = :ifId " + 
 	        "ORDER BY prj.pj_name DESC, prd.pd_name ASC", nativeQuery = true)
