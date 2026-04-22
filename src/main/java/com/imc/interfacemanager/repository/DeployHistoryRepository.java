@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.imc.interfacemanager.dto.DeployStatusDto;
-import com.imc.interfacemanager.entity.DeployHistory;
+import com.imc.interfacemanager.entity.deploy.DeployHistory;
 
 @Repository
 public interface DeployHistoryRepository extends JpaRepository<DeployHistory, Long> { // ID 타입 확인(Long/String)

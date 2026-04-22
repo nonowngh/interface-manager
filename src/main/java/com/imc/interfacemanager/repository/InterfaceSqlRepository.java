@@ -8,8 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.imc.interfacemanager.entity.InterfaceSql;
-import com.imc.interfacemanager.entity.InterfaceSql.InterfaceSqlId;
+import com.imc.interfacemanager.entity.interfaceinfo.InterfaceSql;
+import com.imc.interfacemanager.entity.interfaceinfo.InterfaceSql.InterfaceSqlId;
 
 @Repository
 public interface InterfaceSqlRepository extends JpaRepository<InterfaceSql, InterfaceSqlId> {

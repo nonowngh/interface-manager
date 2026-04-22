@@ -8,7 +8,7 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.imc.interfacemanager.dto.AdaptorInfoDto;
-import com.imc.interfacemanager.entity.EsbProduct;
+import com.imc.interfacemanager.entity.esb.EsbProduct;
 
 @Repository
 public interface DeployAdaptorRepository extends JpaRepository<EsbProduct, String> {
@@ -24,7 +24,13 @@ public interface DeployAdaptorRepository extends JpaRepository<EsbProduct, Strin
 	        "     FROM interface_manager.interface_deploy_hist h " + 
 	        "     WHERE h.interface_id = :ifId " + 
 	        "       AND h.result_code = 'S' " + 
-	        "       AND h.target_adapter = prd.pd_name) AS lastDeployTime " + // 🚀 비교 연산자로 수정
+	        "       AND h.target_adapter = prd.pd_name) AS lastDeployTime, " + // 🚀 비교 연산자로 수정
+	        "    (SELECT h.deploy_version " + 
+	        "     FROM interface_manager.interface_deploy_hist h " + 
+	        "     WHERE h.interface_id = :ifId " + 
+	        "       AND h.result_code = 'S' " + 
+	        "       AND h.target_adapter = prd.pd_name " + 
+	        "     ORDER BY h.deployed_at DESC LIMIT 1) AS deployVersion " +
 	        "FROM esb_product prd " + 
 	        "INNER JOIN esb_instance ins ON prd.pd_id = ins.in_id " + 
 	        "INNER JOIN esb_project prj ON ins.pj_id = prj.pj_id " + 

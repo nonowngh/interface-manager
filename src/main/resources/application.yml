@@ -40,6 +40,8 @@ spring:
 #    broker-url: failover:(tcp://localhost:28111)?initialReconnectDelay=100&maxReconnectDelay=30000
     broker-url: tcp://localhost:28001
 
+metadata:
+  schema-name: interface_manager
 
 jms:
   receiver:

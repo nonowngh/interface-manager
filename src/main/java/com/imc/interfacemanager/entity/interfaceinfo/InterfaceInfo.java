@@ -1,4 +1,4 @@
-package com.imc.interfacemanager.entity;
+package com.imc.interfacemanager.entity.interfaceinfo;
 
 import java.time.LocalDateTime;
 
@@ -20,7 +20,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "interface_info", schema = "interface_manager")
+@Table(name = "interface_info")
 @Data
 @NoArgsConstructor
 @AllArgsConstructor

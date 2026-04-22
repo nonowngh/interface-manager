@@ -10,8 +10,8 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.imc.interfacemanager.entity.InterfaceInfo;
-import com.imc.interfacemanager.entity.PatternInfo;
+import com.imc.interfacemanager.entity.interfaceinfo.InterfaceInfo;
+import com.imc.interfacemanager.entity.interfaceinfo.PatternInfo;
 
 @Repository
 public interface InterfaceRepository extends JpaRepository<InterfaceInfo, String> {

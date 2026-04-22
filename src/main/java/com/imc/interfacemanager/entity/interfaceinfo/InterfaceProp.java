@@ -1,4 +1,4 @@
-package com.imc.interfacemanager.entity;
+package com.imc.interfacemanager.entity.interfaceinfo;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;

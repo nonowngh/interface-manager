@@ -8,4 +8,5 @@ public interface AdaptorInfoDto {
     String getFinalMoStatus();  // 실시간 모니터링 상태 (01, 02 등)
     String getIsMapped();       // 현재 인터페이스에 매핑 여부 ('Y' 또는 'N')
     String getLastDeployTime();
+    String getDeployVersion();
 }

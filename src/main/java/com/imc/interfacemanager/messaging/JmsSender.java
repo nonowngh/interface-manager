@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.imc.interfacemanager.dto.DeployMessageDto;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,12 +32,13 @@ public class JmsSender {
 	 * @throws Exception
 	 */
 	@Async("deployTaskExecutor")
-	public void sendDeployMessages(String interfaceId, List<String> adapterIds) throws Exception {
+	public void sendDeployMessages(DeployMessageDto payload, List<String> adapterIds) throws Exception {
 		if (adapterIds == null || adapterIds.isEmpty()) {
-			log.warn("⚠️ 전송할 어댑터 ID 리스트가 비어있습니다. (InterfaceId: {})", interfaceId);
+			log.warn("⚠️ 전송할 어댑터 ID 리스트가 비어있습니다. (InterfaceId: {})", payload.getInterfaceId());
 			return;
 		}
 
+		String interfaceId = payload.getInterfaceId();
 		log.info("🚀 JMS 전송 시작 - Interface: {}, Total Adapters: {}", interfaceId, adapterIds.size());
 
 		try {
@@ -47,7 +49,7 @@ public class JmsSender {
 				Map<String, Object> messagePayload = new HashMap<>();
 				messagePayload.put("interfaceId", interfaceId);
 				messagePayload.put("adapterId", adapterId);
-				messagePayload.put("deployData", "");
+				messagePayload.put("deployData", payload);
 
 				String jsonPayload = objectMapper.writeValueAsString(messagePayload);
 
@@ -55,13 +57,14 @@ public class JmsSender {
 				jmsTemplate.convertAndSend(destination, jsonPayload, message -> {
 					message.setStringProperty("deployType", "each");
 					message.setStringProperty("adaptorId", adapterId);
+					message.setStringProperty("interfaceId", interfaceId);
 					return message;
 				});
 
 				log.info("<<<< [전송성공] Adapter: {}", adapterId);
 			}
 		} catch (Exception e) {
-			log.error("❌ JMS 전송 처리 중 예외 발생: {}", e.getMessage(), e);
+			log.error("❌ JMS 전송 처리 중 예외 발생 (InterfaceId: {}): {}", interfaceId, e.getMessage(), e);
 			throw e;
 		}
 	}

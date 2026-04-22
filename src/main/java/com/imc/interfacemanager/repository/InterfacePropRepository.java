@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import com.imc.interfacemanager.entity.InterfaceProp;
+import com.imc.interfacemanager.entity.interfaceinfo.InterfaceProp;
 
 @Repository
 public interface InterfacePropRepository extends JpaRepository<InterfaceProp, InterfaceProp.InterfacePropId> {

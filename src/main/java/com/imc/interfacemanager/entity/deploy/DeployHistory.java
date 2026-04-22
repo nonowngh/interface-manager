@@ -1,4 +1,4 @@
-package com.imc.interfacemanager.entity;
+package com.imc.interfacemanager.entity.deploy;
 
 import java.time.LocalDateTime;
 

@@ -6,16 +6,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javax.persistence.EntityNotFoundException;
+
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.imc.interfacemanager.dto.AdaptorInfoDto;
-import com.imc.interfacemanager.entity.DeployAdaptorMapping;
-import com.imc.interfacemanager.entity.DeployHistory;
+import com.imc.interfacemanager.dto.DeployMessageDto;
+import com.imc.interfacemanager.dto.DeployResultDto;
+import com.imc.interfacemanager.entity.deploy.DeployAdaptorMapping;
+import com.imc.interfacemanager.entity.deploy.DeployHistory;
+import com.imc.interfacemanager.entity.interfaceinfo.InterfaceInfo;
+import com.imc.interfacemanager.entity.interfaceinfo.InterfaceProp;
+import com.imc.interfacemanager.entity.interfaceinfo.InterfaceSql;
 import com.imc.interfacemanager.messaging.JmsSender;
 import com.imc.interfacemanager.repository.DeployAdaptorMappingRepository;
 import com.imc.interfacemanager.repository.DeployAdaptorRepository;
 import com.imc.interfacemanager.repository.DeployHistoryRepository;
+import com.imc.interfacemanager.repository.InterfacePropRepository;
+import com.imc.interfacemanager.repository.InterfaceRepository;
+import com.imc.interfacemanager.repository.InterfaceSqlRepository;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +40,10 @@ public class DeployService {
 	private final DeployAdaptorRepository deployAdaptorRepository;
 	private final DeployHistoryRepository deployHistoryRepository;
 	private final JmsSender jmsSender;
+	private final ObjectMapper objectMapper = new ObjectMapper();
+	private final InterfaceRepository interfaceRepository;
+	private final InterfacePropRepository propRepository;
+	private final InterfaceSqlRepository sqlRepository;
 
 	/**
 	 * 전체 어댑터 상태 및 매핑 정보 조회
@@ -51,57 +66,52 @@ public class DeployService {
 			mapping.setLastDeployVersion(deployVersion);
 			return mapping;
 		}).collect(Collectors.toList());
-		
-		List<DeployHistory> histories = adapterIds.stream().map(adapterId -> {
-			DeployHistory history = new DeployHistory();
-			history.setInterfaceId(interfaceId);
-			history.setDeployVersion(deployVersion);
-			history.setTargetAdapter(adapterId);
-			history.setDeployData("{}");
-			history.setResultCode("P");
-			history.setDeployedBy("admin");
-			history.setDeployedAt(LocalDateTime.now());
-			return history;
-		}).collect(Collectors.toList());
 
-		// 한 번에 저장 (Batch Insert 효과)
 		deployAdaptorMappingRepository.saveAll(mappings);
-		deployHistoryRepository.saveAll(histories);
-
 
 		log.info("인터페이스 [{}]에 어댑터 {}개 매핑 완료", interfaceId, adapterIds.size());
 
-//		createDeployHistory(interfaceId, adapterIds, deployVersion);
-
 		try {
-			jmsSender.sendDeployMessages(interfaceId, adapterIds);
+			DeployMessageDto deployPayload = buildDeployPayload(interfaceId);
+			String deployJson = objectMapper.writeValueAsString(deployPayload);
+
+			List<DeployHistory> histories = adapterIds.stream().map(adapterId -> {
+				DeployHistory history = new DeployHistory();
+				history.setInterfaceId(interfaceId);
+				history.setDeployVersion(deployVersion);
+				history.setTargetAdapter(adapterId);
+				history.setDeployData(deployJson);
+				history.setResultCode("P");
+				history.setDeployedBy("admin");
+				history.setDeployedAt(LocalDateTime.now());
+				return history;
+			}).collect(Collectors.toList());
+			deployHistoryRepository.saveAll(histories);
+
+			jmsSender.sendDeployMessages(deployPayload, adapterIds);
 		} catch (Exception e) {
-			updateDeployResult(interfaceId, "F", e.getMessage(), deployVersion);
+			updateDeployResult(DeployResultDto.builder().interfaceId(interfaceId).resultCode("F")
+					.resultMessage(e.getMessage()).deployVersion(deployVersion).build());
 		}
 	}
 
-//	private void createDeployHistory(String interfaceId, List<String> adapterIds, String deployVersion) {
-//		try {
-//			// 1. 현재 인터페이스의 최신 버전을 조회하여 +1 계산
-////			int nextVersion = deployHistoryRepository.findMaxVersionByInterfaceId(interfaceId) + 1;
-//
-//			// 2. 이력 객체 생성
-//			DeployHistory history = new DeployHistory();
-//			history.setInterfaceId(interfaceId);
-//			history.setDeployVersion(deployVersion);
-//			history.setTargetAdapters(objectMapper.writeValueAsString(adapterIds));
-//			history.setDeployData("{}");
-//			history.setResultCode("P");
-//			history.setDeployedBy("admin");
-//			history.setDeployedAt(LocalDateTime.now());
-//
-//			// 3. 저장 및 반환
-//			deployHistoryRepository.save(history);
-//		} catch (JsonProcessingException e) {
-//			log.error("배포 이력 생성 중 JSON 변환 실패: interfaceId={}, error={}", interfaceId, e.getMessage());
-//			throw new RuntimeException("배포 이력 생성 중 오류가 발생했습니다.", e);
-//		}
-//	}
+	private DeployMessageDto buildDeployPayload(String interfaceId) {
+		InterfaceInfo info = interfaceRepository.findById(interfaceId)
+				.orElseThrow(() -> new EntityNotFoundException("Interface not found: " + interfaceId));
+
+		List<InterfaceProp> props = propRepository.findByInterfaceId(interfaceId);
+		List<InterfaceSql> sqls = sqlRepository.findByInterfaceId(interfaceId);
+
+		return DeployMessageDto.builder().interfaceId(info.getInterfaceId()).interfaceName(info.getInterfaceName())
+				.cronExpression(info.getCronExpression()).patternCode(info.getPattern().getPatternCode())
+				.sendSystemCode(info.getSendSystemCode()).recvSystemCode(info.getRecvSystemCode())
+				.properties(props.stream()
+						.map(p -> new DeployMessageDto.PropertyDto(p.getPropertyName(), p.getPropertyValue()))
+						.collect(Collectors.toList()))
+				.sqls(sqls.stream().map(s -> new DeployMessageDto.SqlDto(s.getSqlId(), s.getSqlType(), s.getSqlQuery()))
+						.collect(Collectors.toList()))
+				.build();
+	}
 
 	/**
 	 * 배포 이력 조회
@@ -135,7 +145,8 @@ public class DeployService {
 		}).collect(Collectors.toList());
 	}
 
-	public void updateDeployResult(String interfaceId, String statusCode, String errorMessage, String deployVersion) {
-		deployHistoryRepository.updateDeployResult(interfaceId, deployVersion, statusCode, errorMessage);
+	public void updateDeployResult(DeployResultDto resultDto) {
+		deployHistoryRepository.updateDeployResult(resultDto.getInterfaceId(), resultDto.getDeployVersion(),
+				resultDto.getResultCode(), resultDto.getResultMessage());
 	}
 }

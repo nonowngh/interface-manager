@@ -1,6 +1,6 @@
 package com.imc.interfacemanager.dto;
 
-import com.imc.interfacemanager.entity.PatternInfo;
+import com.imc.interfacemanager.entity.interfaceinfo.PatternInfo;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

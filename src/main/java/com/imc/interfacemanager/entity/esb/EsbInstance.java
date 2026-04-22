@@ -1,4 +1,4 @@
-package com.imc.interfacemanager.entity;
+package com.imc.interfacemanager.entity.esb;
 
 import javax.persistence.Column;
 import javax.persistence.Entity;
