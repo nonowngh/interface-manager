@@ -32,9 +32,7 @@ public class JmsReceiver implements MessageListener {
 				String text = ((TextMessage) message).getText();
 				log.info("📩 JMS 메시지 수신: {}", text);
 
-				// 1. JSON 문자열을 Map으로 변환
 				DeployResultDto result = objectMapper.readValue(text, DeployResultDto.class);
-				// 2. 비즈니스 로직 처리 분리
 				processDeployResult(result);
 			} else {
 				log.warn("⚠️ 지원하지 않는 메시지 형식입니다: {}", message.getClass().getName());

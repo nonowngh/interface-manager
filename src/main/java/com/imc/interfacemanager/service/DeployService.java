@@ -15,6 +15,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.imc.interfacemanager.dto.AdaptorInfoDto;
 import com.imc.interfacemanager.dto.DeployMessageDto;
 import com.imc.interfacemanager.dto.DeployResultDto;
+import com.imc.interfacemanager.dto.UnDeployRequest.AdapterStatusDto;
 import com.imc.interfacemanager.entity.deploy.DeployAdaptorMapping;
 import com.imc.interfacemanager.entity.deploy.DeployHistory;
 import com.imc.interfacemanager.entity.interfaceinfo.InterfaceInfo;
@@ -54,11 +55,11 @@ public class DeployService {
 
 	@Transactional
 	public void processAsyncDeploy(String interfaceId, List<String> adapterIds, String deployVersion) {
-		// 매핑 정보 동기화 (기존 삭제 후 일괄 저장)
-		deployAdaptorMappingRepository.deleteByInterfaceId(interfaceId);
 
 		// 리스트를 엔티티 리스트로 변환
 		List<DeployAdaptorMapping> mappings = adapterIds.stream().map(adapterId -> {
+			// 매핑 정보 동기화 (기존 삭제)
+			deployAdaptorMappingRepository.deleteByInterfaceIdAndAdapterId(interfaceId, adapterId);
 			DeployAdaptorMapping mapping = new DeployAdaptorMapping();
 			mapping.setInterfaceId(interfaceId);
 			mapping.setAdapterId(adapterId);
@@ -66,15 +67,12 @@ public class DeployService {
 			mapping.setLastDeployVersion(deployVersion);
 			return mapping;
 		}).collect(Collectors.toList());
-
 		deployAdaptorMappingRepository.saveAll(mappings);
-
 		log.info("인터페이스 [{}]에 어댑터 {}개 매핑 완료", interfaceId, adapterIds.size());
 
 		try {
 			DeployMessageDto deployPayload = buildDeployPayload(interfaceId);
 			String deployJson = objectMapper.writeValueAsString(deployPayload);
-
 			List<DeployHistory> histories = adapterIds.stream().map(adapterId -> {
 				DeployHistory history = new DeployHistory();
 				history.setInterfaceId(interfaceId);
@@ -87,12 +85,40 @@ public class DeployService {
 				return history;
 			}).collect(Collectors.toList());
 			deployHistoryRepository.saveAll(histories);
-
 			jmsSender.sendDeployMessages(deployPayload, adapterIds);
 		} catch (Exception e) {
 			updateDeployResult(DeployResultDto.builder().interfaceId(interfaceId).resultCode("F")
 					.resultMessage(e.getMessage()).deployVersion(deployVersion).build());
 		}
+	}
+
+	@Transactional
+	public void processAsyncUnDeploy(String interfaceId, List<AdapterStatusDto> adapters) {
+		adapters.stream().forEach(adapterStatusDto -> {
+			String adapterId = adapterStatusDto.getAdapterId();
+			if (deployAdaptorMappingRepository.deleteByInterfaceIdAndAdapterId(interfaceId, adapterId) > 0)
+				log.info("인터페이스 [{}]를 [{}] 어댑터에서 매핑 삭제 완료", interfaceId, adapterId);
+			deployHistoryRepository.findLastDeployVersion(interfaceId, adapterId).map(String::trim)
+					.ifPresent(lastVersion -> {
+						DeployHistory history = new DeployHistory();
+						history.setInterfaceId(interfaceId);
+						history.setDeployVersion(lastVersion);
+						history.setTargetAdapter(adapterId);
+						history.setDeployData("{}");
+						history.setResultCode("U");
+						history.setDeployedBy("admin");
+						history.setDeployedAt(LocalDateTime.now());
+						deployHistoryRepository.save(history);
+						if (adapterStatusDto.isOperational()) {
+							try {
+								jmsSender.sendDeployMessages("CANCEL", adapterId, interfaceId);
+							} catch (Exception e) {
+								updateDeployResult(DeployResultDto.builder().interfaceId(interfaceId).resultCode("F")
+										.resultMessage(e.getMessage()).deployVersion(lastVersion).build());
+							}
+						}
+					});
+		});
 	}
 
 	private DeployMessageDto buildDeployPayload(String interfaceId) {
@@ -149,4 +175,5 @@ public class DeployService {
 		deployHistoryRepository.updateDeployResult(resultDto.getInterfaceId(), resultDto.getDeployVersion(),
 				resultDto.getResultCode(), resultDto.getResultMessage());
 	}
+
 }

@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.imc.interfacemanager.dto.AdaptorInfoDto;
 import com.imc.interfacemanager.dto.DeployRequest;
+import com.imc.interfacemanager.dto.UnDeployRequest;
 import com.imc.interfacemanager.service.DeployService;
 
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,12 @@ public class deployController {
 	@PostMapping("/execute")
 	public ResponseEntity<?> executeDeploy(@RequestBody DeployRequest request) {
 	    deployService.processAsyncDeploy(request.getInterfaceId(), request.getAdapterIds(), request.getDeployVersion());
+	    return ResponseEntity.ok().build();
+	}
+	
+	@PostMapping("/cancel")
+	public ResponseEntity<?> executeCancel(@RequestBody UnDeployRequest request) {
+	    deployService.processAsyncUnDeploy(request.getInterfaceId(), request.getAdapters());
 	    return ResponseEntity.ok().build();
 	}
 

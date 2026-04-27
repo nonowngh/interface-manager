@@ -1,6 +1,7 @@
 package com.imc.interfacemanager.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -39,13 +40,22 @@ public interface DeployHistoryRepository extends JpaRepository<DeployHistory, Lo
 			+ "        WHEN COUNT(CASE WHEN h.result_code = 'P' THEN 1 END) > 0 "
 			+ "            THEN MAX(CASE WHEN h.result_code = 'P' THEN h.deployed_at END) "
 			+ "        /* 2순위: 그 외(F 포함), 전체 이력 중 가장 최근 성공(S) 시간 리턴 */ " + "        ELSE (SELECT MAX(h3.deployed_at) "
-			+ "              FROM interface_manager.interface_deploy_hist h3 "
+			+ "              FROM interface_deploy_hist h3 "
 			+ "              WHERE h3.interface_id = h.interface_id " + "                AND h3.result_code = 'S') "
-			+ "    END AS lastUpdatedAt " + "FROM interface_manager.interface_deploy_hist h "
+			+ "    END AS lastUpdatedAt " + "FROM interface_deploy_hist h "
 			+ "WHERE (h.interface_id, h.deploy_version) IN (" + "    SELECT h2.interface_id, MAX(h2.deploy_version) "
-			+ "    FROM interface_manager.interface_deploy_hist h2 " + "    WHERE h2.interface_id IN :interfaceIds "
+			+ "    FROM interface_deploy_hist h2 " + "    WHERE h2.interface_id IN :interfaceIds "
 			+ "      AND h2.result_code IS NOT NULL " + "      AND h2.result_code != '' "
 			+ "    GROUP BY h2.interface_id" + ") " + "GROUP BY h.interface_id", nativeQuery = true)
 	List<DeployStatusDto> findDeployStatsByInterfaceIds(@Param("interfaceIds") List<String> interfaceIds);
+
+	/**
+	 * 특정 인터페이스와 어댑터의 가장 최근 성공('S') 배포 이력을 조회
+	 */
+	@Query(value = "SELECT h.deploy_version " + "FROM interface_deploy_hist h " + "WHERE h.interface_id = :interfaceId "
+			+ "  AND h.target_adapter = :targetAdapter " + "  AND h.result_code = 'S' " + "ORDER BY h.deployed_at DESC "
+			+ "LIMIT 1", nativeQuery = true)
+	Optional<String> findLastDeployVersion(@Param("interfaceId") String interfaceId,
+			@Param("targetAdapter") String targetAdapter);
 
 }

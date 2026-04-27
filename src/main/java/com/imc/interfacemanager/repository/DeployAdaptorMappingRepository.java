@@ -13,7 +13,6 @@ public interface DeployAdaptorMappingRepository extends JpaRepository<DeployAdap
 
 	@Modifying
     @Transactional
-    void deleteByInterfaceId(String interfaceId);
-	
+    Integer deleteByInterfaceIdAndAdapterId(String interfaceId, String adapterId);	
 
 }

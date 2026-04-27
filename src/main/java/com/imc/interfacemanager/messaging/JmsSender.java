@@ -39,7 +39,7 @@ public class JmsSender {
 		}
 
 		String interfaceId = payload.getInterfaceId();
-		log.info("🚀 JMS 전송 시작 - Interface: {}, Total Adapters: {}", interfaceId, adapterIds.size());
+		log.info("🚀[배포] JMS 전송 시작 - Interface: {}, Total Adapters: {}", interfaceId, adapterIds.size());
 
 		try {
 			for (String adapterId : adapterIds) {
@@ -67,6 +67,26 @@ public class JmsSender {
 			log.error("❌ JMS 전송 처리 중 예외 발생 (InterfaceId: {}): {}", interfaceId, e.getMessage(), e);
 			throw e;
 		}
+	}
+
+	public void sendDeployMessages(String string, String adapterId, String interfaceId) throws Exception {
+		log.info("🚀[배포취소] JMS 전송 시작 - Interface: {}, Adapter: {}", interfaceId, adapterId);
+		log.info(">>>> [전송시도] Adapter: {} (Destination: {})", adapterId, destination);
+		
+		Map<String, Object> messagePayload = new HashMap<>();
+		messagePayload.put("interfaceId", interfaceId);
+		messagePayload.put("adapterId", adapterId);
+		
+		String jsonPayload = objectMapper.writeValueAsString(messagePayload);
+		jmsTemplate.convertAndSend(destination, jsonPayload, message -> {
+			message.setStringProperty("deployType", "each");
+			message.setStringProperty("adaptorId", adapterId);
+			message.setStringProperty("interfaceId", interfaceId);
+			return message;
+		});
+
+		log.info("<<<< [전송성공] Adapter: {}", adapterId);
+
 	}
 
 }
