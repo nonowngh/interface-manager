@@ -38,7 +38,7 @@ spring:
       fail-on-empty-beans: false
   activemq:
 #    broker-url: failover:(tcp://localhost:28111)?initialReconnectDelay=100&maxReconnectDelay=30000
-    broker-url: tcp://localhost:28001
+    broker-url: tcp://localhost:28002
 
 metadata:
   schema-name: interface_manager

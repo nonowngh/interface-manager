@@ -79,7 +79,7 @@ public class JmsSender {
 		
 		String jsonPayload = objectMapper.writeValueAsString(messagePayload);
 		jmsTemplate.convertAndSend(destination, jsonPayload, message -> {
-			message.setStringProperty("deployType", "each");
+			message.setStringProperty("deployType", "cancel");
 			message.setStringProperty("adaptorId", adapterId);
 			message.setStringProperty("interfaceId", interfaceId);
 			return message;

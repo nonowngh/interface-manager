@@ -1,6 +1,7 @@
 package com.imc.interfacemanager.service;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -51,8 +52,14 @@ public class InterfaceService {
 		List<String> ids = entities.stream().map(InterfaceInfo::getInterfaceId).collect(Collectors.toList());
 
 		// 3. 통계 정보를 한 번의 쿼리로 대량 조회 (N+1 방지)
-		Map<String, DeployStatusDto> statsMap = deployHistoryRepository.findDeployStatsByInterfaceIds(ids).stream()
-				.collect(Collectors.toMap(DeployStatusDto::getInterfaceId, s -> s));
+//		Map<String, DeployStatusDto> statsMap = deployHistoryRepository.findDeployStatsByInterfaceIds(ids).stream()
+//				.collect(Collectors.toMap(DeployStatusDto::getInterfaceId, s -> s));
+
+		// 1. Repository에서 리스트 조회
+		List<DeployStatusDto> flatList = deployHistoryRepository.findAdapterStatusByInterfaceIds(ids);
+		// 2. InterfaceId를 키(Key)로 그룹핑
+		Map<String, List<DeployStatusDto>> statsMap = flatList.stream()
+				.collect(Collectors.groupingBy(DeployStatusDto::getInterfaceId));
 		// 4. 변환 메서드에 Map을 전달하여 조립
 		return entities.stream().map(entity -> convertToDto(entity, statsMap.get(entity.getInterfaceId())))
 				.collect(Collectors.toList());
@@ -77,10 +84,12 @@ public class InterfaceService {
 						.sqlType(s.getSqlType()).sqlQuery(s.getSqlQuery()).build())
 				.collect(Collectors.toList());
 		// 4. 배포 통계 정보 조회
-		List<DeployStatusDto> stats = deployHistoryRepository.findDeployStatsByInterfaceIds(Arrays.asList(interfaceId));
-		DeployStatusDto stat = stats.isEmpty() ? null : stats.get(0);
+//		List<DeployStatusDto> stats = deployHistoryRepository.findDeployStatsByInterfaceIds(Arrays.asList(interfaceId));
+//		DeployStatusDto stat = stats.isEmpty() ? null : stats.get(0);
+		List<DeployStatusDto> flatList = deployHistoryRepository
+				.findAdapterStatusByInterfaceIds(Arrays.asList(interfaceId));
 		// 5. DTO 조립
-		InterfaceInfoDto dto = convertToDto(entity, stat);
+		InterfaceInfoDto dto = convertToDto(entity, flatList);
 		dto.setProperties(props);
 		dto.setSqls(sqls);
 		return dto;
@@ -129,32 +138,32 @@ public class InterfaceService {
 				.lastDeployBy(entity.getLastDeployBy()).build();
 	}
 
-	private InterfaceInfoDto convertToDto(InterfaceInfo entity, DeployStatusDto stat) {
+	private InterfaceInfoDto convertToDto(InterfaceInfo entity, List<DeployStatusDto> statusList) {
 		PatternInfo p = entity.getPattern();
-		String deployStatus = "N";
-		if (stat != null && stat.getLastUpdatedAt() != null) {
-			if (stat.getTotalCount() > 0) {
-				if (stat.getSuccessCount() == stat.getTotalCount())
-					deployStatus = "Y";
-				else
-					deployStatus = "P";
-			}
-		}
-
+		// 1. 배포 상태 결정 (우선순위: F > P > S, 데이터 없으면 N)
+		String deployStatus = statusList.stream().map(DeployStatusDto::getLastResultCode).filter(Objects::nonNull)
+				.findFirst() // 데이터가 하나라도 있는지 확인용
+				.map(ignored -> {
+					if (statusList.stream().anyMatch(d -> "F".equals(d.getLastResultCode())))
+						return "F";
+					if (statusList.stream().anyMatch(d -> "P".equals(d.getLastResultCode())))
+						return "P";
+					return "S";
+				}).orElse("N");
+		// 2. 최신 성공 시간 추출
+		String latestSuccessTimeStr = statusList.stream().map(DeployStatusDto::getLastSuccessAt)
+				.filter(Objects::nonNull).max(LocalDateTime::compareTo)
+				.map(time -> time.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))).orElse(null);
 		return InterfaceInfoDto.builder().interfaceId(entity.getInterfaceId()).interfaceName(entity.getInterfaceName())
 				.patternType(p != null ? p.getPatternCode() : null).patternName(p != null ? p.getPatternName() : null)
 				.interfaceType(p != null ? p.getInterfaceType().name() : null)
-				.interfaceTypeName(p != null ? p.getInterfaceType().getDescription() : "") // ex: "배치"
+				.interfaceTypeName(p != null ? p.getInterfaceType().getDescription() : "") // ex:"배치"
 				.cronExpression(entity.getCronExpression()).patternType(entity.getPattern().getPatternCode())
 				.patternName(entity.getPattern().getPatternName()).sendSystemCode(entity.getSendSystemCode())
 				.updatedAt(entity.getUpdatedAt() != null ? entity.getUpdatedAt().toString() : null)
 				.recvSystemCode(entity.getRecvSystemCode()).useYn(entity.getUseYn()).createdBy(entity.getCreatedBy())
-				.updatedBy(entity.getUpdatedBy()).deployStatus(entity.getDeployStatus()).deployStatus(deployStatus)
-				.deployTotalCount(stat != null ? stat.getTotalCount() : 0)
-				.deploySuccessCount(stat != null ? stat.getSuccessCount() : 0)
-				.lastDeployAt(
-						stat != null && stat.getLastUpdatedAt() != null ? stat.getLastUpdatedAt().toString() : null)
-				.build();
+				.updatedBy(entity.getUpdatedBy()).deployStatus(deployStatus).deployTotalCount(0).deploySuccessCount(0)
+				.lastDeployAt(latestSuccessTimeStr).build();
 	}
 
 	@Transactional
